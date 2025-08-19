@@ -1,0 +1,23 @@
+{
+  "name": "itemsdat-tools",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "keywords": [],
+  "author": "yankuro",
+  "license": "MIT",
+  "dependencies": {
+    "blessed": "^0.1.81",
+    "canvas": "^3.1.2",
+    "fs": "^0.0.1-security",
+    "jimp": "^1.6.0",
+    "node-fetch": "^3.3.2",
+    "pako": "^2.1.0",
+    "path": "^0.12.7",
+    "telegraf": "^4.16.3"
+  }
+}
