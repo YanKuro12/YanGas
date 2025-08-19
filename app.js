@@ -1,93 +1,60 @@
-const { Telegraf } = require("telegraf");
-const fs = require("fs");
-const fetch = require("node-fetch");
-const path = require("path");
+/*
+  @ Credited to GuckTube
+  @ Remaked by ReallBoyy
+*/
 
-const bot = new Telegraf("8411521862:AAGheaW9KKF55QG2joWlnY3ZZ5Sa8_RyTbs");
+import { promises as fs } from "fs";
+import path from "path";
+import { Telegraf } from 'telegraf';
+import { fileURLToPath } from 'url';
 
-// Import tools modular
-const decode = require("./code/decode");
-const encode = require("./code/encode");
-const rttexToPng = require("./code/rttextopng");
-const pngToRttex = require("./code/pngtorttex");
-const resize = require("./code/resize");
-const protonhash = require("./code/protonhash");
-const itemtools = require("./code/src/itemtools");
+const fname = fileURLToPath(import.meta.url);
+const __dir = path.dirname(fname);
+const bot = new Telegraf('8411521862:AAGheaW9KKF55QG2joWlnY3ZZ5Sa8_RyTbs');
+let helpCmd;
 
-// Session
-const sessions = {};
-bot.use((ctx, next) => {
-  const id = ctx.from?.id;
-  if (!sessions[id]) sessions[id] = {};
-  ctx.session = sessions[id];
-  return next();
-});
+async function Commands() {
+  const pluginsdir = path.join(__dir, "code");
+  const files =  await fs.readdir('./code');
+  const plugins = files.filter((f) => f.endsWith('.js'));
+  var menuCommands = []
+  for (const file of plugins) {
+    const { default: handler } = await import(`file://${pluginsdir}/${file}`);
 
-// Register semua command
-const commands = [
-  "decode", "encode", "rttextopng", "pngtorttex",
-  "resize", "itemtxt", "itemdat", "protonhash"
-];
-
-commands.forEach(cmd => {
-  bot.command(cmd, (ctx) => {
-    ctx.session.awaitingFile = cmd;
-    ctx.reply(`Kirim file untuk *${cmd}*`, { parse_mode: "Markdown" });
-  });
-});
-
-// Saat file dikirim
-bot.on("document", async (ctx) => {
-  const cmd = ctx.session?.awaitingFile;
-  if (!cmd) return ctx.reply("Ketik command dulu (misal /decode)");
-
-  const file = ctx.message.document;
-  const link = await ctx.telegram.getFileLink(file.file_id);
-  const res = await fetch(link.href);
-  const buffer = await res.buffer();
-
-  try {
-    let result;
-
-    switch (cmd) {
-      case "decode":
-        result = await decode(buffer);
-        break;
-      case "encode":
-        result = await encode(buffer);
-        break;
-      case "rttextopng":
-        result = await rttexToPng(buffer);
-        break;
-      case "pngtorttex":
-        result = await pngToRttex(buffer);
-        break;
-      case "resize":
-        result = await resize(buffer);
-        break;
-      case "itemtxt":
-        result = await itemtools.itemDatToTxt(buffer);
-        break;
-      case "itemdat":
-        result = await itemtools.itemTxtToDat(buffer);
-        break;
-      case "protonhash":
-        result = await protonhash(buffer);
-        break;
+    if (handler.command && Array.isArray(handler.command)) {
+       handler.command.forEach((cmd) => { bot.command(cmd, (ctx) => { handler(ctx, { conn: bot }) })})
+       if (handler.help) {
+         menuCommands.push({ command: handler.command[0], description: handler.help});
+       }
     }
-
-    if (Buffer.isBuffer(result)) {
-      await ctx.replyWithDocument({ source: result, filename: `${cmd}_result.bin` });
-    } else {
-      await ctx.reply(result.length > 4096 ? "Output terlalu panjang." : `\`\`\`\n${result}\n\`\`\``, { parse_mode: "Markdown" });
-    }
-  } catch (e) {
-    console.error(e);
-    ctx.reply("Gagal proses file.");
   }
+  if (menuCommands.length) {
+    bot.telegram.setMyCommands(menuCommands);
+    helpCmd = menuCommands;
+  }
+}
 
-  ctx.session.awaitingFile = null;
+bot.use((ctx, next) => {
+  console.log(ctx.from);
+  console.log(ctx.message);
+  next();
 });
 
-bot.launch();
-console.log("Bot jalan...");
+bot.start((ctx) => {
+  ctx.reply('Hello there! use /help to show all bot commands.');
+});
+bot.help((ctx) => {
+  var msgToSent = '';
+  for (const cmd of helpCmd) {
+    if (cmd !== null) msgToSent += `<\\-\\> ${cmd.command} \\- ${cmd.description}\n`;
+  }
+  ctx.replyWithMarkdownV2(`**Available Command List:**\n${msgToSent}`);
+  return;
+})
+
+await Commands();
+
+bot.launch(() => console.log('Telegram bot is online!'));
+
+
+
